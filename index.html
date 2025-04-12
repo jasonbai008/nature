@@ -250,14 +250,13 @@
       function getRandomPosition() {
         const containerWidth = gameContainer.offsetWidth;
         const containerHeight = gameContainer.offsetHeight;
-
-        // 确保蛾子不会出现在树的正中央
-        let x, y;
-        do {
-          x = Math.floor(Math.random() * (containerWidth - 30)) + 15;
-          y = Math.floor(Math.random() * (containerHeight - 30)) + 15;
-        } while (x > containerWidth / 2 - 70 && x < containerWidth / 2 + 70 && y > containerHeight / 2 - 50 && y < containerHeight / 2 + 150);
-
+        const mothWidth = 50; // 蛾子宽度
+        const mothHeight = 50; // 蛾子高度
+        
+        // 确保蛾子完全在容器内
+        const x = Math.floor(Math.random() * (containerWidth - mothWidth));
+        const y = Math.floor(Math.random() * (containerHeight - mothHeight));
+        
         return { x, y };
       }
 

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>桦尺蛾自然选择模拟</title>
+    <script src="js/chart.js"></script>
+    <style>
+      body {
+        font-family: "Microsoft YaHei", sans-serif;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+      }
+      .game-container {
+        position: relative;
+        width: 600px;
+        height: 400px;
+        margin: 20px auto;
+        border: 2px solid #333;
+        border-radius: 5px;
+        overflow: hidden;
+        background-color: #2a2a2a;
+        background-image: url(images/darkBg.jpg); /* 深色树皮背景 */
+        background-size: cover;
+      }
+      .tree {
+        position: absolute;
+        width: 100px;
+        height: 300px;
+        background-color: #1a1a1a;
+        left: 50%;
+        top: 100px;
+        transform: translateX(-50%);
+        border-radius: 10px;
+      }
+      .moth {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background-size: contain;
+        transform-origin: center center;
+      }
+      /* .moth:hover {
+        width: 52px;
+        height: 52px;
+      } */
+      .dark {
+        /* background-color: #333;
+        border: 1px solid #111; */
+        background-image: url(images/darkMoth.png); /* 深色飞蛾 */
+      }
+      .light {
+        /* background-color: #ddd;
+        border: 1px solid #aaa; */
+        background-image: url(images/lightMoth.png); /* 浅色飞蛾 */
+      }
+      .controls {
+        text-align: center;
+        margin: 20px 0;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border-radius: 5px;
+        margin: 0 10px;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      .stats {
+        display: flex;
+        justify-content: space-around;
+        margin: 20px 0;
+      }
+      .stat-box {
+        background-color: #e9f7ef;
+        padding: 15px;
+        border-radius: 5px;
+        width: 30%;
+        text-align: center;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      .chart-container {
+        margin: 30px 0;
+      }
+      .instructions {
+        background-color: #e7f3fe;
+        padding: 15px;
+        border-left: 5px solid #2196f3;
+        margin: 20px 0;
+      }
+      .moth-count {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(255, 255, 255, 0.7);
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>桦尺蛾自然选择模拟</h1>
+
+      <div class="instructions">
+        <h3>“捕食”说明：</h3>
+        <p>1. 第一轮：30只深色蛾和30只浅色蛾随机分布在深色树周围，点击捕食直到剩余15只。</p>
+        <p>2. 第二轮：剩下的15只蛾各产3只后代（共60只），捕食45只。</p>
+        <p>3. 第三轮：同上轮繁殖方式，捕食45只。</p>
+        <p>4. “捕食”结束后将显示统计数据和折线图，展示桦尺蛾数量的变化。</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat-box">
+          <h3>当前轮次</h3>
+          <p id="round">1</p>
+        </div>
+        <div class="stat-box">
+          <h3>已捕食数量</h3>
+          <p id="eaten">0</p>
+        </div>
+        <div class="stat-box">
+          <h3>剩余数量</h3>
+          <p id="remaining">60</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn">开始“捕食”</button>
+        <button id="nextRoundBtn" disabled>下一轮</button>
+        <button id="resetBtn">重置</button>
+        <button id="toggleBgBtn">切换背景</button>
+      </div>
+
+      <div class="game-container" id="gameContainer">
+        <!-- <div class="tree"></div> -->
+        <div class="moth-count" id="mothCount">深色: 30 | 浅色: 30</div>
+      </div>
+
+      <h2>统计数据</h2>
+      <table id="dataTable">
+        <thead>
+          <tr>
+            <th>轮次</th>
+            <th>初始深色蛾</th>
+            <th>初始浅色蛾</th>
+            <th>被捕食深色蛾</th>
+            <th>被捕食浅色蛾</th>
+            <th>剩余深色蛾</th>
+            <th>剩余浅色蛾</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="chart-container">
+        <canvas id="mothChart"></canvas>
+      </div>
+    </div>
+
+    <script>
+      // “捕食”状态
+      const gameState = {
+        round: 0,
+        darkMoths: 30,
+        lightMoths: 30,
+        eatenDark: 0,
+        eatenLight: 0,
+        gameStarted: false,
+        data: [],
+        moths: [], // 存储所有蛾子DOM元素
+      };
+
+      // DOM元素
+      const gameContainer = document.getElementById("gameContainer");
+      const startBtn = document.getElementById("startBtn");
+      const nextRoundBtn = document.getElementById("nextRoundBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const toggleBgBtn = document.getElementById("toggleBgBtn");
+      const roundDisplay = document.getElementById("round");
+      const eatenDisplay = document.getElementById("eaten");
+      const remainingDisplay = document.getElementById("remaining");
+      const mothCountDisplay = document.getElementById("mothCount");
+      const dataTable = document.querySelector("#dataTable tbody");
+
+      // 图表
+      const ctx = document.getElementById("mothChart").getContext("2d");
+      let mothChart = null;
+
+      // 背景状态
+      let isDarkBackground = true;
+
+      // 初始化“捕食”
+      function initGame() {
+        gameState.round = 1;
+        gameState.darkMoths = 30;
+        gameState.lightMoths = 30;
+        gameState.eatenDark = 0;
+        gameState.eatenLight = 0;
+        gameState.gameStarted = true;
+        gameState.data = [];
+        gameState.moths = [];
+
+        updateDisplay();
+        renderMoths();
+        startBtn.disabled = true;
+        nextRoundBtn.disabled = true;
+      }
+
+      // 随机位置生成器
+      function getRandomPosition() {
+        const containerWidth = gameContainer.offsetWidth;
+        const containerHeight = gameContainer.offsetHeight;
+
+        // 确保蛾子不会出现在树的正中央
+        let x, y;
+        do {
+          x = Math.floor(Math.random() * (containerWidth - 30)) + 15;
+          y = Math.floor(Math.random() * (containerHeight - 30)) + 15;
+        } while (x > containerWidth / 2 - 70 && x < containerWidth / 2 + 70 && y > containerHeight / 2 - 50 && y < containerHeight / 2 + 150);
+
+        return { x, y };
+      }
+
+      // 渲染蛾子
+      function renderMoths() {
+        // 清除现有的蛾子
+        gameState.moths.forEach((moth) => {
+          if (moth.parentNode) {
+            moth.parentNode.removeChild(moth);
+          }
+        });
+        gameState.moths = [];
+
+        // 创建深色蛾子
+        for (let i = 0; i < gameState.darkMoths; i++) {
+          const moth = document.createElement("div");
+          moth.className = "moth dark";
+          const pos = getRandomPosition();
+          moth.style.left = `${pos.x}px`;
+          moth.style.top = `${pos.y}px`;
+          // 设置随机旋转角度
+          moth.style.transform = `rotate(${Math.floor(Math.random() * 360)}deg)`;
+
+          moth.addEventListener("click", () => catchMoth(moth, "dark"));
+          gameContainer.appendChild(moth);
+          gameState.moths.push(moth);
+        }
+
+        // 创建浅色蛾子
+        for (let i = 0; i < gameState.lightMoths; i++) {
+          const moth = document.createElement("div");
+          moth.className = "moth light";
+          const pos = getRandomPosition();
+          moth.style.left = `${pos.x}px`;
+          moth.style.top = `${pos.y}px`;
+          // 设置随机旋转角度
+          moth.style.transform = `rotate(${Math.floor(Math.random() * 360)}deg)`;
+
+          moth.addEventListener("click", () => catchMoth(moth, "light"));
+          gameContainer.appendChild(moth);
+          gameState.moths.push(moth);
+        }
+      }
+
+      // 捕捉蛾子
+      function catchMoth(mothElement, type) {
+        if (!gameState.gameStarted) return;
+
+        // 移除蛾子
+        mothElement.style.display = "none";
+        gameState.moths = gameState.moths.filter((m) => m !== mothElement);
+
+        if (type === "dark") {
+          gameState.darkMoths--;
+          gameState.eatenDark++;
+        } else {
+          gameState.lightMoths--;
+          gameState.eatenLight++;
+        }
+
+        updateDisplay();
+
+        // 检查是否结束当前轮次
+        checkRoundEnd();
+      }
+
+      // 检查轮次是否结束
+      function checkRoundEnd() {
+        const totalRemaining = gameState.darkMoths + gameState.lightMoths;
+        let roundEnd = false;
+
+        if (gameState.round === 1 && totalRemaining <= 15) {
+          // 第一轮剩余15只
+          roundEnd = true;
+        } else if ((gameState.round === 2 || gameState.round === 3) && totalRemaining <= 15) {
+          // 其他轮次剩余15只
+          roundEnd = true;
+        }
+
+        if (roundEnd) {
+          endRound();
+        }
+      }
+
+      // 结束当前轮次
+      function endRound() {
+        gameState.gameStarted = false;
+
+        // 记录数据
+        recordData();
+
+        // 如果还有下一轮，启用下一轮按钮
+        if (gameState.round < 3) {
+          nextRoundBtn.disabled = false;
+        } else {
+          // “捕食”结束，显示图表
+          renderChart();
+        }
+      }
+
+      // 进入下一轮
+      function nextRound() {
+        gameState.round++;
+
+        // 上一轮剩余的蛾子各产下3只后代
+        gameState.darkMoths = gameState.darkMoths * 4;
+        gameState.lightMoths = gameState.lightMoths * 4;
+
+        gameState.eatenDark = 0;
+        gameState.eatenLight = 0;
+        gameState.gameStarted = true;
+
+        updateDisplay();
+        renderMoths();
+        nextRoundBtn.disabled = true;
+      }
+
+      // 记录数据
+      function recordData() {
+        gameState.data.push({
+          round: gameState.round,
+          initialDark: gameState.round === 1 ? 30 : gameState.data[gameState.data.length - 1].remainingDark * 4,
+          initialLight: gameState.round === 1 ? 30 : gameState.data[gameState.data.length - 1].remainingLight * 4,
+          eatenDark: gameState.eatenDark,
+          eatenLight: gameState.eatenLight,
+          remainingDark: gameState.darkMoths,
+          remainingLight: gameState.lightMoths,
+        });
+
+        updateDataTable();
+      }
+
+      // 更新数据表格
+      function updateDataTable() {
+        dataTable.innerHTML = "";
+
+        gameState.data.forEach((data) => {
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
+                    <td>${data.round}</td>
+                    <td>${data.initialDark}</td>
+                    <td>${data.initialLight}</td>
+                    <td>${data.eatenDark}</td>
+                    <td>${data.eatenLight}</td>
+                    <td>${data.remainingDark}</td>
+                    <td>${data.remainingLight}</td>
+                `;
+
+          dataTable.appendChild(row);
+        });
+      }
+
+      // 更新显示
+      function updateDisplay() {
+        roundDisplay.textContent = gameState.round;
+        eatenDisplay.textContent = gameState.eatenDark + gameState.eatenLight;
+        remainingDisplay.textContent = gameState.darkMoths + gameState.lightMoths;
+        mothCountDisplay.textContent = `深色: ${gameState.darkMoths} | 浅色: ${gameState.lightMoths}`;
+      }
+
+      // 渲染图表
+      function renderChart() {
+        if (mothChart) {
+          mothChart.destroy();
+        }
+
+        const labels = gameState.data.map((data) => `第 ${data.round} 轮`);
+        const darkData = gameState.data.map((data) => data.remainingDark);
+        const lightData = gameState.data.map((data) => data.remainingLight);
+
+        mothChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "深色桦尺蛾",
+                data: darkData,
+                borderColor: "rgb(51, 51, 51)",
+                backgroundColor: "rgba(51, 51, 51, 0.2)",
+                tension: 0.1,
+                fill: false,
+              },
+              {
+                label: "浅色桦尺蛾",
+                data: lightData,
+                borderColor: "rgb(221, 221, 221)",
+                backgroundColor: "rgba(221, 221, 221, 0.2)",
+                tension: 0.1,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "数量",
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "轮次",
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // 重置“捕食”
+      function resetGame() {
+        gameState.round = 0;
+        gameState.darkMoths = 30;
+        gameState.lightMoths = 30;
+        gameState.eatenDark = 0;
+        gameState.eatenLight = 0;
+        gameState.gameStarted = false;
+        gameState.data = [];
+        gameState.moths = [];
+
+        // 清除所有蛾子
+        const moths = document.querySelectorAll(".moth");
+        moths.forEach((moth) => moth.remove());
+
+        dataTable.innerHTML = "";
+        if (mothChart) {
+          mothChart.destroy();
+          mothChart = null;
+        }
+
+        updateDisplay();
+        startBtn.disabled = false;
+        nextRoundBtn.disabled = true;
+      }
+
+      // 切换背景
+      function toggleBackground() {
+        // 先重置“捕食”
+        resetGame();
+
+        // 切换背景状态
+        isDarkBackground = !isDarkBackground;
+
+        if (isDarkBackground) {
+          // 切换到深色背景
+          gameContainer.style.backgroundColor = "#2a2a2a";
+          gameContainer.style.backgroundImage = "url(images/darkBg.jpg)";
+          // document.querySelector("h1").textContent = "桦尺蛾自然选择模拟（深色树背景）";
+        } else {
+          // 切换到浅色背景
+          gameContainer.style.backgroundColor = "#e0e0e0";
+          gameContainer.style.backgroundImage = "url(images/lightBg.jpg)";
+          // document.querySelector("h1").textContent = "桦尺蛾自然选择模拟（浅色树背景）";
+        }
+      }
+
+      // 事件监听
+      startBtn.addEventListener("click", initGame);
+      nextRoundBtn.addEventListener("click", nextRound);
+      resetBtn.addEventListener("click", resetGame);
+      toggleBgBtn.addEventListener("click", toggleBackground);
+    </script>
+  </body>
+</html>
